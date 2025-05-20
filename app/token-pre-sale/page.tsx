@@ -639,7 +639,7 @@ export default function TokenPreSalePage() {
                 <Web3Button size="lg" variant="gradient" asChild>
                   <Link href="/community/dashboard">Join Community</Link>
                 </Web3Button>
-                <Web3Button size="lg" variant="emerald" onClick={() => setShowNotification(true)}>
+                <Web3Button size="lg" variant="gradient" onClick={() => setShowNotification(true)}>
                   Get Notified
                 </Web3Button>
               </div>
