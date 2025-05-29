@@ -1,24 +1,33 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Info } from "lucide-react"
-import Web3Button from "@/components/web3-button"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Info } from "lucide-react";
+import Web3Button from "@/components/web3-button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { useAccount } from "wagmi";
+import { CoffeeSvg } from "./ui/coffeeSVG";
 
 interface TokenPurchaseTabsProps {
-  ethUsdPrice: number
-  ethAmount: string
-  usdcAmount: string
-  tokenAmount: string
-  minPurchaseUsd: number
-  isConnected: boolean
-  onEthAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onUsdcAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onBuyWithEth: () => void
-  onBuyWithUsdc: () => void
-  openConnectModal: () => void
+  ethUsdPrice: number;
+  ethAmount: string;
+  usdcAmount: string;
+  tokenAmount: string;
+  minPurchaseUsd: number;
+  isConnected: boolean;
+  isPendingEth: boolean;
+  isConfirmingBuyEth: boolean;
+  isConfirmedBuyEth: boolean;
+  onEthAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onUsdcAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBuyWithEth: () => void;
+  onBuyWithUsdc: () => void;
 }
 
 export function TokenPurchaseTabs({
@@ -28,13 +37,28 @@ export function TokenPurchaseTabs({
   tokenAmount,
   minPurchaseUsd,
   isConnected,
+  isPendingEth,
+  isConfirmingBuyEth,
+  isConfirmedBuyEth,
   onEthAmountChange,
   onUsdcAmountChange,
   onBuyWithEth,
   onBuyWithUsdc,
-  openConnectModal,
 }: TokenPurchaseTabsProps) {
-  const [activeTab, setActiveTab] = useState<"eth" | "usdc">("eth")
+  const [activeTab, setActiveTab] = useState<"eth" | "usdc">("eth");
+  const { address } = useAccount();
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  useEffect(() => {
+    if (isConfirmedBuyEth) {
+      setShowConfirmation(true);
+      const timer = setTimeout(() => {
+        setShowConfirmation(false);
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [isConfirmedBuyEth]);
+  console.log("confermation", showConfirmation);
 
   return (
     <div className="w-full">
@@ -50,7 +74,7 @@ export function TokenPurchaseTabs({
         >
           <div className="flex items-center justify-center">
             <div className="w-5 h-5 rounded-full bg-emerald-900/50 flex items-center justify-center mr-2">
-              <img src="/placeholder.svg?height=16&width=16" alt="ETH" className="w-4 h-4" />
+              <CoffeeSvg />
             </div>
             Buy with ETH
           </div>
@@ -65,7 +89,7 @@ export function TokenPurchaseTabs({
         >
           <div className="flex items-center justify-center">
             <div className="w-5 h-5 rounded-full bg-purple-900/50 flex items-center justify-center mr-2">
-              <img src="/placeholder.svg?height=16&width=16" alt="USDC" className="w-4 h-4" />
+              <CoffeeSvg />
             </div>
             Buy with USDC
           </div>
@@ -77,15 +101,22 @@ export function TokenPurchaseTabs({
         <div className="space-y-4">
           <div className="bg-black/40 rounded-lg p-4 flex items-center justify-between">
             <div className="text-sm text-gray-400">Current ETH Price</div>
-            <div className="text-emerald-400 font-bold">${ethUsdPrice.toFixed(2)}</div>
+            <div className="text-emerald-400 font-bold">
+              ${ethUsdPrice.toFixed(2)}
+            </div>
           </div>
           <div className="text-xs text-amber-400/80 italic mt-1 flex items-center">
             <div className="mr-1 flex-shrink-0">⚠️</div>
-            <div>Demo only: Price shown is simulated and not actual market data</div>
+            <div>
+              Demo only: Price shown is simulated and not actual market data
+            </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="eth-amount" className="text-sm text-gray-300 flex items-center">
+            <label
+              htmlFor="eth-amount"
+              className="text-sm text-gray-300 flex items-center"
+            >
               ETH Amount
               <TooltipProvider>
                 <Tooltip>
@@ -109,18 +140,36 @@ export function TokenPurchaseTabs({
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-900/50">
-                  <img src="/placeholder.svg?height=16&width=16" alt="ETH" className="w-4 h-4" />
+                  {/* <!-- Coffee bean with white outline (for green background) --> */}
+                  <CoffeeSvg />
                 </div>
               </div>
             </div>
             {ethAmount && (
               <div className="text-xs text-gray-400 flex justify-between">
-                <span>≈ ${(Number.parseFloat(ethAmount || "0") * ethUsdPrice).toFixed(2)} USD</span>
+                <span>
+                  ≈ $
+                  {(Number.parseFloat(ethAmount || "0") * ethUsdPrice).toFixed(
+                    2
+                  )}{" "}
+                  USD
+                </span>
                 <span>{tokenAmount} WAGA</span>
               </div>
             )}
           </div>
-
+          <div className="min-h-[24px] text-center">
+            {isConfirmingBuyEth && (
+              <div className=" mt-4 text-yellow-500 animate-pulse">
+                ⏳ Waiting for confirmation...
+              </div>
+            )}
+            {isConfirmedBuyEth && showConfirmation && (
+              <div className=" mt-4  text-green-500 transition-opacity duration-300">
+                ✅ Transaction confirmed!
+              </div>
+            )}
+          </div>
           <div className="pt-2">
             {isConnected ? (
               <Web3Button
@@ -128,15 +177,26 @@ export function TokenPurchaseTabs({
                 className="w-full py-3 relative overflow-hidden group"
                 variant="gradient"
               >
-                <span className="relative z-10">Buy WAGA Tokens</span>
+                <span className="relative z-10">
+                  {" "}
+                  {!address
+                    ? "Connect Wallet to Buy"
+                    : isPendingEth
+                    ? "Confirming..."
+                    : "Buy WAGA Token"}
+                </span>
                 <span className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
               </Web3Button>
             ) : (
               <Button
-                onClick={openConnectModal}
+                onClick={onBuyWithEth}
                 className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-medium transition-all duration-200"
               >
-                Connect Wallet to Buy
+                {!address
+                  ? "Connect Wallet to Buy"
+                  : isPendingEth
+                  ? "Confirming..."
+                  : "Buy WAGA Token"}
               </Button>
             )}
           </div>
@@ -147,7 +207,10 @@ export function TokenPurchaseTabs({
       {activeTab === "usdc" && (
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="usdc-amount" className="text-sm text-gray-300 flex items-center">
+            <label
+              htmlFor="usdc-amount"
+              className="text-sm text-gray-300 flex items-center"
+            >
               USDC Amount
               <TooltipProvider>
                 <Tooltip>
@@ -171,7 +234,7 @@ export function TokenPurchaseTabs({
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-900/50">
-                  <img src="/placeholder.svg?height=16&width=16" alt="USDC" className="w-4 h-4" />
+                  <CoffeeSvg />
                 </div>
               </div>
             </div>
@@ -181,9 +244,21 @@ export function TokenPurchaseTabs({
               </div>
             )}
           </div>
+          <div className="min-h-[24px] text-center">
+            {isConfirmingBuyEth && (
+              <div className=" mt-4 text-yellow-500 animate-pulse">
+                ⏳ Waiting for confirmation...
+              </div>
+            )}
+            {isConfirmedBuyEth && showConfirmation && (
+              <div className=" mt-4  text-green-500 transition-opacity duration-300">
+                ✅ Transaction confirmed!
+              </div>
+            )}
+          </div>
 
           <div className="pt-2">
-            {isConnected ? (
+            {address ? (
               <Web3Button
                 onClick={onBuyWithUsdc}
                 className="w-full py-3 relative overflow-hidden group"
@@ -194,15 +269,19 @@ export function TokenPurchaseTabs({
               </Web3Button>
             ) : (
               <Button
-                onClick={openConnectModal}
+                onClick={onBuyWithUsdc}
                 className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-medium transition-all duration-200"
               >
-                Connect Wallet to Buy
+                {!address
+                  ? "Connect Wallet to Buy"
+                  : isPendingEth
+                  ? "Confirming..."
+                  : "Buy WAGA Token"}
               </Button>
             )}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
