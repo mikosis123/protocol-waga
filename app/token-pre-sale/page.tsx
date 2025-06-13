@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -21,7 +20,8 @@ import Web3Button from "@/components/web3-button";
 import Web3Card from "@/components/web3-card";
 import DynamicGlowCard from "@/components/dynamic-glow-card";
 import { Button } from "@/components/ui/button";
-import { TokenPurchaseTabs } from "@/components/token-purchase-tabs";
+import TokenPurchaseTabs from "@/components/token-purchase-tabs";
+import { useWallet } from "@/context/wallet-context";
 import {
   useAccount,
   useReadContract,
@@ -29,6 +29,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { wagmiContractConfig } from "@/components/contract-data/wagmiContractConfig";
+import { useToast } from "@/hooks/use-toast";
 
 // Animation variants
 const fadeIn = {
@@ -66,9 +67,24 @@ export default function TokenPreSalePage() {
   const [ethAmount, setEthAmount] = useState("");
   const [usdcAmount, setUsdcAmount] = useState("");
   const [tokenAmount, setTokenAmount] = useState("0");
+  const [lastTransactionTokenAmount, setLastTransactionTokenAmount] =
+    useState("0");
   const [ethUsdPrice, setEthUsdPrice] = useState(MOCK_ETH_USD_PRICE);
 
   const { address, isConnected } = useAccount();
+  const { openConnectModal } = useWallet();
+  const { toast } = useToast();
+  const {
+    data: hash,
+    error,
+    isPending: isPendingEth,
+    writeContract,
+  } = useWriteContract();
+
+  const { isLoading: isConfirmingBuyEth, isSuccess: isConfirmedBuyEth } =
+    useWaitForTransactionReceipt({
+      hash,
+    });
 
   const { data: ethPrice } = useReadContract({
     ...wagmiContractConfig,
@@ -90,10 +106,12 @@ export default function TokenPreSalePage() {
       const usdValue = ethValue * ethUsdPrice;
       const tokens = usdValue / TOKEN_PRICE_USD;
       setTokenAmount(tokens.toFixed(2));
+      setLastTransactionTokenAmount(tokens.toFixed(2));
     } else if (usdcAmount && !isNaN(Number.parseFloat(usdcAmount))) {
       const usdcValue = Number.parseFloat(usdcAmount);
       const tokens = usdcValue / TOKEN_PRICE_USD;
       setTokenAmount(tokens.toFixed(2));
+      setLastTransactionTokenAmount(tokens.toFixed(2));
     } else {
       setTokenAmount("0");
     }
@@ -130,31 +148,24 @@ export default function TokenPreSalePage() {
       setEthAmount("");
     }
   };
-  const {
-    data: hash,
-    error,
-    isPending: isPendingEth,
-    writeContract,
-  } = useWriteContract();
-  const { isLoading: isConfirmingBuyEth, isSuccess: isConfirmedBuyEth } =
-    useWaitForTransactionReceipt({
-      hash,
-    });
-  console.log(isConfirmingBuyEth, isConfirmedBuyEth);
 
   const handleBuyWithEth = async () => {
     if (!address) {
-      alert("Please connect your wallet.");
+      openConnectModal;
       return;
     }
 
     const ethValue = parseFloat(ethAmount);
     const usdValue = ethValue * ethUsdPrice;
-    console.log(usdValue);
+    // console.log(usdValue);
 
     // Optional: enforce a minimum purchase
     if (usdValue < MIN_PURCHASE_USD) {
-      alert(`Minimum purchase is $${MIN_PURCHASE_USD}`);
+      toast({
+        title: "Minimum purchase Amount",
+        description: `Minimum purchase is $${MIN_PURCHASE_USD}`,
+        variant: "default",
+      });
       return;
     }
 
@@ -169,20 +180,36 @@ export default function TokenPreSalePage() {
       setEthAmount("");
     } catch (error) {
       console.error("Transaction failed:", error);
-      alert("Transaction failed. Check console for details.");
+      if (ethValue < 0 || isNaN(ethValue)) {
+        toast({
+          title: "Error",
+          description: `Invalid ETH amount. Please enter a valid number.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Transaction failed. Check console for details.`,
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const handleBuyWithUsdc = async () => {
     if (!address) {
-      alert("Please connect your wallet.");
+      openConnectModal;
       return;
     }
 
     const usdcValue = Number.parseFloat(usdcAmount);
 
     if (usdcValue < MIN_PURCHASE_USD) {
-      alert(`Minimum purchase is $${MIN_PURCHASE_USD}`);
+      toast({
+        title: "Minimum purchase Amount",
+        description: `Minimum purchase is $${MIN_PURCHASE_USD}`,
+        variant: "default",
+      });
       return;
     }
     try {
@@ -197,13 +224,20 @@ export default function TokenPreSalePage() {
       setUsdcAmount("");
     } catch (error) {
       console.error("Transaction failed:", error);
-      alert("Transaction failed. Check console for details.");
+      if (usdcValue < 0 || isNaN(usdcValue)) {
+        toast({
+          title: "Error",
+          description: `Invalid USDC amount. Please enter a valid number.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Transaction failed. Check console for details.`,
+          variant: "destructive",
+        });
+      }
     }
-
-    // This would call the contract's buyWithUSDC function
-    // alert(
-    //   `You would purchase ${tokenAmount} WAGA tokens for ${usdcAmount} USDC`
-    // );
   };
 
   return (
@@ -371,6 +405,7 @@ export default function TokenPreSalePage() {
 
                 {/* Custom Token Purchase Tabs Component */}
                 <TokenPurchaseTabs
+                  lastTransactionTokenAmount={lastTransactionTokenAmount}
                   ethUsdPrice={ethUsdPrice}
                   ethAmount={ethAmount}
                   usdcAmount={usdcAmount}

@@ -13,28 +13,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAccount } from "wagmi";
 import { CoffeeSvg } from "./ui/coffeeSVG";
+import { useToast } from "@/hooks/use-toast"; // Ensure this import is correct based on your file structure
+import { useWallet } from "@/context/wallet-context";
 
 interface TokenPurchaseTabsProps {
   ethUsdPrice: number;
   ethAmount: string;
   usdcAmount: string;
   tokenAmount: string;
+  lastTransactionTokenAmount: string;
   minPurchaseUsd: number;
   isConnected: boolean;
-  isPendingEth: boolean;
-  isConfirmingBuyEth: boolean;
-  isConfirmedBuyEth: boolean;
+  isPendingEth: boolean; // Indicates if a transaction is pending (sent to network)
+  isConfirmingBuyEth: boolean; // Indicates if transaction is being confirmed on blockchain
+  isConfirmedBuyEth: boolean; // Indicates if transaction is confirmed successful
   onEthAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onUsdcAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBuyWithEth: () => void;
   onBuyWithUsdc: () => void;
 }
 
-export function TokenPurchaseTabs({
+export default function TokenPurchaseTabs({
   ethUsdPrice,
   ethAmount,
   usdcAmount,
   tokenAmount,
+  lastTransactionTokenAmount,
   minPurchaseUsd,
   isConnected,
   isPendingEth,
@@ -46,23 +50,98 @@ export function TokenPurchaseTabs({
   onBuyWithUsdc,
 }: TokenPurchaseTabsProps) {
   const [activeTab, setActiveTab] = useState<"eth" | "usdc">("eth");
+  const { openConnectModal } = useWallet();
   const { address } = useAccount();
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  useEffect(() => {
-    if (isConfirmedBuyEth) {
-      setShowConfirmation(true);
-      const timer = setTimeout(() => {
-        setShowConfirmation(false);
-      }, 10000); // 10 seconds
+  const { toast } = useToast();
 
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    if (isConfirmedBuyEth && parseFloat(lastTransactionTokenAmount) > 0) {
+      toast({
+        title: "Transaction Confirmed!",
+        description: `Your purchase of ${lastTransactionTokenAmount} WAGA tokens is complete.`,
+        variant: "default",
+      });
     }
-  }, [isConfirmedBuyEth]);
-  console.log("confermation", showConfirmation);
+  }, [isConfirmedBuyEth, toast]);
+  /**
+   * Handles the buy with ETH action, including validation and toast notifications.
+   */
+  const handleBuyWithEthWithToast = () => {
+    if (!isConnected) {
+      openConnectModal();
+      return;
+    }
+
+    const ethValue = parseFloat(ethAmount);
+    const usdValue = ethValue * ethUsdPrice;
+
+    if (usdValue < minPurchaseUsd) {
+      toast({
+        title: "Error",
+        description: `Minimum purchase is $${minPurchaseUsd} USD.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Call the original buy function (which should trigger the transaction)
+    onBuyWithEth();
+
+    // Show pending toast immediately after the transaction is initiated
+    if (ethValue > 0) {
+      toast({
+        title: "Transaction Submitted",
+        description:
+          "Your purchase request has been submitted to the network. Waiting for confirmation...",
+        variant: "default",
+      });
+    }
+    if (isConfirmedBuyEth) {
+      toast({
+        title: "Transaction Confirmed!",
+        description: `Your purchase of ${tokenAmount} WAGA tokens is complete.`,
+        variant: "default",
+      });
+    }
+  };
+
+  /**
+   * Handles the buy with USDC action, including validation and toast notifications.
+   */
+  const handleBuyWithUsdcWithToast = () => {
+    if (!isConnected) {
+      openConnectModal();
+      return;
+    }
+
+    const usdcValue = parseFloat(usdcAmount);
+
+    if (usdcValue < minPurchaseUsd) {
+      toast({
+        title: "Error",
+        description: `Minimum purchase is $${minPurchaseUsd} USD.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Call the original buy function (which should trigger the transaction)
+    onBuyWithUsdc();
+
+    // Show pending toast immediately after the transaction is initiated
+    if (usdcValue > 0) {
+      toast({
+        title: "Transaction Submitted",
+        description:
+          "Your purchase request has been submitted to the network. Waiting for confirmation...",
+        variant: "default",
+      });
+    }
+  };
 
   return (
     <div className="w-full">
-      {/* Custom Tab List */}
+      {/* Custom Tab List for ETH and USDC */}
       <div className="grid w-full grid-cols-2 mb-6 bg-black/30 border border-emerald-500/20 p-1 rounded-lg">
         <button
           onClick={() => setActiveTab("eth")}
@@ -99,19 +178,22 @@ export function TokenPurchaseTabs({
       {/* ETH Tab Content */}
       {activeTab === "eth" && (
         <div className="space-y-4">
+          {/* Display current ETH price */}
           <div className="bg-black/40 rounded-lg p-4 flex items-center justify-between">
             <div className="text-sm text-gray-400">Current ETH Price</div>
             <div className="text-emerald-400 font-bold">
               ${ethUsdPrice.toFixed(2)}
             </div>
           </div>
+          {/* Warning for demo-only price */}
           <div className="text-xs text-amber-400/80 italic mt-1 flex items-center">
-            <div className="mr-1 flex-shrink-0">⚠️</div>
+            <div className="mr-1 flex-shrink-0">(Warning)</div>
             <div>
               Demo only: Price shown is simulated and not actual market data
             </div>
           </div>
 
+          {/* ETH Amount Input */}
           <div className="space-y-2">
             <label
               htmlFor="eth-amount"
@@ -140,15 +222,15 @@ export function TokenPurchaseTabs({
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2">
                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-900/50">
-                  {/* <!-- Coffee bean with white outline (for green background) --> */}
                   <CoffeeSvg />
                 </div>
               </div>
             </div>
+            {/* Display approximated USD and WAGA token amount */}
             {ethAmount && (
               <div className="text-xs text-gray-400 flex justify-between">
                 <span>
-                  ≈ $
+                  Approximately $
                   {(Number.parseFloat(ethAmount || "0") * ethUsdPrice).toFixed(
                     2
                   )}{" "}
@@ -158,45 +240,41 @@ export function TokenPurchaseTabs({
               </div>
             )}
           </div>
+          {/* Transaction status messages */}
           <div className="min-h-[24px] text-center">
-            {isConfirmingBuyEth && (
-              <div className=" mt-4 text-yellow-500 animate-pulse">
-                ⏳ Waiting for confirmation...
+            {isPendingEth && (
+              <div className="mt-4 text-yellow-500 animate-pulse">
+                Transaction submitted...
               </div>
             )}
-            {isConfirmedBuyEth && showConfirmation && (
-              <div className=" mt-4  text-green-500 transition-opacity duration-300">
-                ✅ Transaction confirmed!
+            {isConfirmingBuyEth && (
+              <div className="mt-4 text-yellow-500 animate-pulse">
+                Waiting for confirmation...
               </div>
             )}
           </div>
+          {/* Buy ETH Button */}
           <div className="pt-2">
             {isConnected ? (
               <Web3Button
-                onClick={onBuyWithEth}
+                onClick={handleBuyWithEthWithToast}
                 className="w-full py-3 relative overflow-hidden group"
                 variant="gradient"
+                disabled={isPendingEth || isConfirmingBuyEth}
               >
                 <span className="relative z-10">
-                  {" "}
-                  {!address
-                    ? "Connect Wallet to Buy"
-                    : isPendingEth
-                    ? "Confirming..."
+                  {isPendingEth || isConfirmingBuyEth
+                    ? "Processing..."
                     : "Buy WAGA Token"}
                 </span>
                 <span className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
               </Web3Button>
             ) : (
               <Button
-                onClick={onBuyWithEth}
+                onClick={handleBuyWithEthWithToast}
                 className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-medium transition-all duration-200"
               >
-                {!address
-                  ? "Connect Wallet to Buy"
-                  : isPendingEth
-                  ? "Confirming..."
-                  : "Buy WAGA Token"}
+                Connect Wallet to Buy
               </Button>
             )}
           </div>
@@ -206,6 +284,7 @@ export function TokenPurchaseTabs({
       {/* USDC Tab Content */}
       {activeTab === "usdc" && (
         <div className="space-y-4">
+          {/* USDC Amount Input */}
           <div className="space-y-2">
             <label
               htmlFor="usdc-amount"
@@ -238,45 +317,45 @@ export function TokenPurchaseTabs({
                 </div>
               </div>
             </div>
+            {/* Display WAGA token amount */}
             {usdcAmount && (
               <div className="text-xs text-gray-400 flex justify-end">
                 <span>{tokenAmount} WAGA</span>
               </div>
             )}
           </div>
+          {/* Transaction status messages */}
           <div className="min-h-[24px] text-center">
-            {isConfirmingBuyEth && (
-              <div className=" mt-4 text-yellow-500 animate-pulse">
-                ⏳ Waiting for confirmation...
+            {isPendingEth && (
+              <div className="mt-4 text-yellow-500 animate-pulse">
+                Transaction submitted...
               </div>
             )}
-            {isConfirmedBuyEth && showConfirmation && (
-              <div className=" mt-4  text-green-500 transition-opacity duration-300">
-                ✅ Transaction confirmed!
+            {isConfirmingBuyEth && (
+              <div className="mt-4 text-yellow-500 animate-pulse">
+                Waiting for confirmation...
               </div>
             )}
           </div>
 
+          {/* Buy USDC Button */}
           <div className="pt-2">
             {address ? (
               <Web3Button
-                onClick={onBuyWithUsdc}
+                onClick={handleBuyWithUsdcWithToast}
                 className="w-full py-3 relative overflow-hidden group"
                 variant="gradient"
+                disabled={isPendingEth || isConfirmingBuyEth}
               >
                 <span className="relative z-10">Buy WAGA Tokens</span>
                 <span className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
               </Web3Button>
             ) : (
               <Button
-                onClick={onBuyWithUsdc}
+                onClick={handleBuyWithUsdcWithToast}
                 className="w-full bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white font-medium transition-all duration-200"
               >
-                {!address
-                  ? "Connect Wallet to Buy"
-                  : isPendingEth
-                  ? "Confirming..."
-                  : "Buy WAGA Token"}
+                Connect Wallet to Buy
               </Button>
             )}
           </div>
