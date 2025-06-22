@@ -8,6 +8,7 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
+  type ToastProps, // Import ToastProps type
 } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,18 +17,25 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(({ id, title, description, action, ...props }) => (
-        <Toast key={id} {...props}>
-          <div className="grid gap-1">
+      {toasts.map(
+        (
+          { id, title, description, action, variant, ...props } // Added variant here
+        ) => (
+          <Toast key={id} variant={variant} {...props}>
             {" "}
-            {/* Removed mt-2 here */}
-            {title && <ToastTitle>{title}</ToastTitle>}
-            {description && <ToastDescription>{description}</ToastDescription>}
-          </div>
-          {action}
-          <ToastClose />
-        </Toast>
-      ))}
+            {/* Pass variant to Toast component */}
+            <div className="grid gap-1">
+              {" "}
+              {title && <ToastTitle>{title}</ToastTitle>}
+              {description && (
+                <ToastDescription>{description}</ToastDescription>
+              )}
+            </div>
+            {action}
+            <ToastClose />
+          </Toast>
+        )
+      )}
       <ToastViewport />
     </ToastProvider>
   );

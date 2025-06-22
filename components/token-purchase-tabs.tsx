@@ -1,3 +1,4 @@
+// components/token-purchase-tabs.tsx
 "use client";
 
 import type React from "react";
@@ -13,8 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAccount } from "wagmi";
 import { CoffeeSvg } from "./ui/coffeeSVG";
-import { useToast } from "@/hooks/use-toast"; // Ensure this import is correct based on your file structure
+import { useToast } from "@/hooks/use-toast";
 import { useWallet } from "@/context/wallet-context";
+import { formatUnits } from "viem"; // Import formatUnits
 
 interface TokenPurchaseTabsProps {
   ethUsdPrice: number;
@@ -31,6 +33,11 @@ interface TokenPurchaseTabsProps {
   onUsdcAmountChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBuyWithEth: () => void;
   onBuyWithUsdc: () => void;
+  // --- NEW PROPS ADDED ---
+  usdcAllowance: bigint | undefined; // Current USDC allowance for the TokenShop
+  isApprovePending: boolean; // Is USDC approval transaction pending?
+  isConfirmingApprove: boolean; // Is USDC approval transaction confirming?
+  onApproveUsdc: () => void; // Function to trigger USDC approval
 }
 
 export default function TokenPurchaseTabs({
@@ -48,6 +55,11 @@ export default function TokenPurchaseTabs({
   onUsdcAmountChange,
   onBuyWithEth,
   onBuyWithUsdc,
+  // --- NEW PROPS DESTRUCTURED ---
+  usdcAllowance,
+  isApprovePending,
+  isConfirmingApprove,
+  onApproveUsdc,
 }: TokenPurchaseTabsProps) {
   const [activeTab, setActiveTab] = useState<"eth" | "usdc">("eth");
   const { openConnectModal } = useWallet();
@@ -62,7 +74,8 @@ export default function TokenPurchaseTabs({
         variant: "default",
       });
     }
-  }, [isConfirmedBuyEth, toast]);
+  }, [isConfirmedBuyEth, toast, lastTransactionTokenAmount]);
+
   /**
    * Handles the buy with ETH action, including validation and toast notifications.
    */
@@ -71,38 +84,7 @@ export default function TokenPurchaseTabs({
       openConnectModal();
       return;
     }
-
-    const ethValue = parseFloat(ethAmount);
-    const usdValue = ethValue * ethUsdPrice;
-
-    if (usdValue < minPurchaseUsd) {
-      toast({
-        title: "Error",
-        description: `Minimum purchase is $${minPurchaseUsd} USD.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Call the original buy function (which should trigger the transaction)
-    onBuyWithEth();
-
-    // Show pending toast immediately after the transaction is initiated
-    if (ethValue > 0) {
-      toast({
-        title: "Transaction Submitted",
-        description:
-          "Your purchase request has been submitted to the network. Waiting for confirmation...",
-        variant: "default",
-      });
-    }
-    if (isConfirmedBuyEth) {
-      toast({
-        title: "Transaction Confirmed!",
-        description: `Your purchase of ${tokenAmount} WAGA tokens is complete.`,
-        variant: "default",
-      });
-    }
+    onBuyWithEth(); // This will trigger the actual transaction logic in page.tsx
   };
 
   /**
@@ -115,29 +97,39 @@ export default function TokenPurchaseTabs({
     }
 
     const usdcValue = parseFloat(usdcAmount);
+    // Convert usdcAllowance (BigInt) to a number for comparison
+    const currentAllowance = usdcAllowance
+      ? parseFloat(formatUnits(usdcAllowance, 6))
+      : 0; // USDC has 6 decimals
 
-    if (usdcValue < minPurchaseUsd) {
+    // If allowance is not sufficient, prompt for approval
+    if (currentAllowance < usdcValue) {
       toast({
-        title: "Error",
-        description: `Minimum purchase is $${minPurchaseUsd} USD.`,
-        variant: "destructive",
+        title: "Allowance Required",
+        description: `You need to approve the TokenShop to spend at least ${usdcValue} USDC. Click 'Approve USDC' first.`,
+        // variant: "info",
       });
       return;
     }
 
-    // Call the original buy function (which should trigger the transaction)
-    onBuyWithUsdc();
-
-    // Show pending toast immediately after the transaction is initiated
-    if (usdcValue > 0) {
-      toast({
-        title: "Transaction Submitted",
-        description:
-          "Your purchase request has been submitted to the network. Waiting for confirmation...",
-        variant: "default",
-      });
-    }
+    // If allowance is sufficient, proceed with buying
+    onBuyWithUsdc(); // This will trigger the actual transaction logic in page.tsx
   };
+
+  const currentUsdcAllowanceFormatted =
+    usdcAllowance !== undefined
+      ? parseFloat(formatUnits(usdcAllowance, 6)).toLocaleString() // Format for display
+      : "Loading...";
+
+  const usdcAmountValue = parseFloat(usdcAmount);
+  const isUsdcAmountValid =
+    usdcAmount !== "" && !isNaN(usdcAmountValue) && usdcAmountValue > 0;
+  // Determine if approval is needed: connected, valid amount, and current allowance is less than desired amount
+  const isApprovalNeeded =
+    isConnected &&
+    isUsdcAmountValid &&
+    usdcAllowance !== undefined &&
+    usdcAllowance < BigInt(Math.floor(usdcAmountValue * 1e6));
 
   return (
     <div className="w-full">
@@ -281,7 +273,7 @@ export default function TokenPurchaseTabs({
         </div>
       )}
 
-      {/* USDC Tab Content */}
+      {/* USDC Tab Content (Modified) */}
       {activeTab === "usdc" && (
         <div className="space-y-4">
           {/* USDC Amount Input */}
@@ -324,30 +316,75 @@ export default function TokenPurchaseTabs({
               </div>
             )}
           </div>
+
+          {/* Display Current Allowance */}
+          {isConnected && (
+            <div className="bg-black/40 rounded-lg p-3 text-sm flex justify-between items-center border border-purple-500/20">
+              <span className="text-gray-400">Approved for TokenShop:</span>
+              <span className="text-purple-300 font-medium">
+                {currentUsdcAllowanceFormatted} USDC
+              </span>
+            </div>
+          )}
+
           {/* Transaction status messages */}
           <div className="min-h-[24px] text-center">
-            {isPendingEth && (
+            {isApprovePending || isConfirmingApprove ? (
               <div className="mt-4 text-yellow-500 animate-pulse">
-                Transaction submitted...
+                {isApprovePending
+                  ? "Approving USDC in wallet..."
+                  : "Confirming approval..."}
               </div>
-            )}
-            {isConfirmingBuyEth && (
-              <div className="mt-4 text-yellow-500 animate-pulse">
-                Waiting for confirmation...
-              </div>
+            ) : (
+              (isPendingEth || isConfirmingBuyEth) && (
+                <div className="mt-4 text-yellow-500 animate-pulse">
+                  {isPendingEth
+                    ? "USDC purchase submitted..."
+                    : "Waiting for USDC purchase confirmation..."}
+                </div>
+              )
             )}
           </div>
 
-          {/* Buy USDC Button */}
+          {/* Approve USDC Button (Conditional) */}
+          {isConnected && isUsdcAmountValid && isApprovalNeeded && (
+            <div className="pt-2">
+              <Web3Button
+                onClick={onApproveUsdc}
+                className="w-full py-3 relative overflow-hidden group"
+                variant="purple-outline" // Changed variant for distinction
+                disabled={isApprovePending || isConfirmingApprove}
+              >
+                <span className="relative z-10">
+                  {isApprovePending || isConfirmingApprove
+                    ? "Processing Approval..."
+                    : `Approve ${usdcAmount} USDC`}
+                </span>
+                <span className="absolute inset-0 bg-gradient-to-r from-purple-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              </Web3Button>
+            </div>
+          )}
+
+          {/* Buy USDC Button (Conditional) */}
           <div className="pt-2">
-            {address ? (
+            {isConnected ? (
               <Web3Button
                 onClick={handleBuyWithUsdcWithToast}
                 className="w-full py-3 relative overflow-hidden group"
-                variant="gradient"
-                disabled={isPendingEth || isConfirmingBuyEth}
+                variant="dual-gradient" // Changed variant for distinction
+                disabled={
+                  isPendingEth ||
+                  isConfirmingBuyEth ||
+                  isApprovePending ||
+                  isConfirmingApprove ||
+                  isApprovalNeeded
+                }
               >
-                <span className="relative z-10">Buy WAGA Tokens</span>
+                <span className="relative z-10">
+                  {isPendingEth || isConfirmingBuyEth
+                    ? "Processing Purchase..."
+                    : "Buy WAGA Tokens with USDC"}
+                </span>
                 <span className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
               </Web3Button>
             ) : (
