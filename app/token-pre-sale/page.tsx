@@ -32,6 +32,7 @@ import {
 import { wagmiContractConfig } from "@/components/contract-data/wagmiContractConfig";
 import { useToast } from "@/hooks/use-toast";
 
+// --- START OF MODIFICATIONS ---
 // Correct import for erc20Abi from the new file
 import { erc20Abi } from "@/components/contract-data/wagmiContractConfig"; // Corrected import path
 import { parseEther, parseUnits, formatUnits } from "viem"; // Import necessary viem utilities
@@ -41,8 +42,9 @@ const USDC_CONTRACT_ADDRESS =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`; // USDC on Base Sepolia
 const TOKEN_SHOP_CONTRACT_ADDRESS =
   "0xFd366a14FbeAa467Ea2179952107a5Ecc90af7fD" as `0x${string}`; // Your TokenShop address
+// --- END OF MODIFICATIONS ---
 
-// Animation variants for Framer Motion
+// Animation variants
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
@@ -58,7 +60,6 @@ const staggerContainer = {
   },
 };
 
-// CSS-in-JS style for gradient text glow
 const gradientTextStyle = {
   color: "transparent",
   backgroundClip: "text",
@@ -68,7 +69,8 @@ const gradientTextStyle = {
   backgroundSize: "300% auto",
 };
 
-// Mock data for token shop (to be replaced with actual contract values later)
+// Mock data for token shop (would be replaced with actual contract values)
+
 const MOCK_ETH_USD_PRICE = 3500; // $ per ETH
 
 export default function TokenPreSalePage() {
@@ -82,18 +84,18 @@ export default function TokenPreSalePage() {
   const [lastTransactionTokenAmount, setLastTransactionTokenAmount] =
     useState("0");
   const [ethUsdPrice, setEthUsdPrice] = useState(MOCK_ETH_USD_PRICE);
-  const [shouldBuyAfterApproval, setShouldBuyAfterApproval] = useState(false);
 
   const { address, isConnected } = useAccount();
   const { openConnectModal } = useWallet();
   const { toast } = useToast();
 
-  // Wagmi Hooks for TokenShop (buy ETH/USDC) transactions
+  // --- START OF MODIFICATIONS ---
+  // Wagmi Hooks for TokenShop transactions
   const {
-    data: shopTxHash,
+    data: shopTxHash, // Renamed hash to shopTxHash for clarity
     error: shopError,
-    isPending: isShopTxPending, // True when buy transaction is sent to network
-    writeContract: writeShopContract,
+    isPending: isShopTxPending, // Renamed isPendingEth
+    writeContract: writeShopContract, // Renamed writeContract
   } = useWriteContract();
 
   const { isLoading: isConfirmingShopTx, isSuccess: isConfirmedShopTx } =
@@ -105,7 +107,7 @@ export default function TokenPreSalePage() {
   const {
     data: approveTxHash,
     error: approveError,
-    isPending: isApprovePending, // True when approve transaction is sent to network
+    isPending: isApprovePending,
     writeContract: writeApproveContract,
   } = useWriteContract();
 
@@ -113,23 +115,16 @@ export default function TokenPreSalePage() {
     useWaitForTransactionReceipt({
       hash: approveTxHash,
     });
-
-  // Handler for email notification form submission
   const handleSubmit = (e: React.FormEvent) => {
+    // <--- Defined here
     e.preventDefault();
-    // This would normally submit to a backend for email subscription
-    // Using console.log instead of alert for better user experience in an iframe.
-    console.log(`Thank you! We'll notify ${email} when the token sale begins.`);
-    toast({
-      title: "Notification Subscribed!",
-      description: `We'll notify ${email} when the token sale begins.`,
-      variant: "default",
-    });
+    // This would normally submit to a backend
+    alert(`Thank you! We'll notify ${email} when the token sale begins.`);
     setEmail("");
     setShowNotification(false);
   };
 
-  // Read Chainlink ETH/USD price from contract
+  // Read Chainlink ETH/USD price
   const { data: ethPrice } = useReadContract({
     ...wagmiContractConfig,
     functionName: "_getEthUsdPrice",
@@ -137,12 +132,14 @@ export default function TokenPreSalePage() {
 
   // Read minPurchaseUsd from TokenShop contract
   const { data: minPurchaseUsdBigInt } = useReadContract({
+    // Renamed to avoid direct conflict
     ...wagmiContractConfig,
     functionName: "minPurchaseUsd",
   });
 
   // Read tokenPriceUsd from TokenShop contract
   const { data: tokenPriceUsdBigInt } = useReadContract({
+    // Renamed to avoid direct conflict
     ...wagmiContractConfig,
     functionName: "tokenPriceUsd",
   });
@@ -160,7 +157,6 @@ export default function TokenPreSalePage() {
       },
     });
 
-  // Update MIN_PURCHASE_USD state when contract data changes
   useEffect(() => {
     if (minPurchaseUsdBigInt && typeof minPurchaseUsdBigInt === "bigint") {
       // Convert BigInt to a readable number (assuming 18 decimals from contract)
@@ -171,7 +167,6 @@ export default function TokenPreSalePage() {
     }
   }, [minPurchaseUsdBigInt]);
 
-  // Update TOKEN_PRICE_USD state when contract data changes
   useEffect(() => {
     if (tokenPriceUsdBigInt && typeof tokenPriceUsdBigInt === "bigint") {
       // Convert BigInt to a readable number (assuming 18 decimals from contract)
@@ -180,80 +175,16 @@ export default function TokenPreSalePage() {
     }
   }, [tokenPriceUsdBigInt]);
 
-  // Update ETH_USD_PRICE state when Chainlink data changes
   useEffect(() => {
     if (ethPrice && typeof ethPrice === "bigint") {
       // Convert BigInt price to a readable number (assuming 8 decimals from Chainlink feed for ETH/USD)
-      const formattedPrice = Number(ethPrice) / 1e18; // Chainlink price feeds for ETH/USD typically use 8 decimals
+
+      const formattedPrice = Number(ethPrice) / 1e18; // Corrected decimals for Chainlink price feed
       setEthUsdPrice(formattedPrice);
     }
   }, [ethPrice]);
 
-  // Define handleBuyWithUsdc function. This is now called after successful approval or if allowance is sufficient.
-  const handleBuyWithUsdc = async () => {
-    if (!address) {
-      openConnectModal();
-      return;
-    }
-
-    const usdcValue = parseFloat(usdcAmount);
-
-    if (MIN_PURCHASE_USD === null || TOKEN_PRICE_USD === null) {
-      toast({
-        title: "Loading Data",
-        description: "Please wait for contract data to load.",
-        variant: "info",
-      });
-      return;
-    }
-
-    if (usdcValue < MIN_PURCHASE_USD) {
-      toast({
-        title: "Minimum Purchase Amount",
-        description: `Minimum purchase is $${MIN_PURCHASE_USD} USD`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Ensure allowance is checked again just before buying, though it's typically handled by handleBuyWithUsdcWithToast
-    const currentAllowance = usdcAllowance
-      ? parseFloat(formatUnits(usdcAllowance, 6))
-      : 0; // USDC has 6 decimals
-
-    if (currentAllowance < usdcValue) {
-      // This case should ideally be caught by handleBuyWithUsdcWithToast,
-      // but serves as a final safeguard.
-      toast({
-        title: "Allowance Not Sufficient",
-        description: "Please approve the TokenShop to spend enough USDC.",
-        variant: "info",
-      });
-      return;
-    }
-
-    try {
-      // Convert USDC amount to BigInt with 6 decimals for the contract call
-      const amountInUnits = parseUnits(usdcValue.toFixed(6), 6);
-      await writeShopContract({
-        address: TOKEN_SHOP_CONTRACT_ADDRESS, // Use TokenShop contract address
-        abi: wagmiContractConfig.abi, // Use TokenShop ABI for buying
-        functionName: "buyWithUSDC",
-        args: [amountInUnits],
-      });
-
-      setUsdcAmount(""); // Clear input after transaction is sent
-    } catch (error) {
-      console.error("USDC purchase failed:", error);
-      toast({
-        title: "USDC Purchase Failed",
-        description: `Error: ${(error as Error).message}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle toast notifications for USDC approval transaction and automatically trigger buy
+  // Handle toast notifications for USDC approval transaction
   useEffect(() => {
     if (isApproved && approveTxHash) {
       toast({
@@ -263,15 +194,10 @@ export default function TokenPreSalePage() {
           6
         )}...${approveTxHash.slice(
           -4
-        )} confirmed. Proceeding with WAGA Token purchase...`,
+        )} confirmed. You can now buy WAGA Tokens with USDC.`,
         variant: "default",
       });
       refetchUsdcAllowance(); // Refetch allowance after successful approval
-
-      // Automatically proceed with purchase if a USDC amount is entered
-      if (parseFloat(usdcAmount) > 0) {
-        handleBuyWithUsdc(); // Automatically trigger the buy function
-      }
     }
     if (approveError) {
       toast({
@@ -280,15 +206,7 @@ export default function TokenPreSalePage() {
         variant: "destructive",
       });
     }
-  }, [
-    isApproved,
-    approveTxHash,
-    approveError,
-    toast,
-    refetchUsdcAllowance,
-    usdcAmount,
-    handleBuyWithUsdc, // Dependency for handleBuyWithUsdc
-  ]);
+  }, [isApproved, approveTxHash, approveError, toast, refetchUsdcAllowance]);
 
   // Handle toast notifications for token purchase transaction
   useEffect(() => {
@@ -318,6 +236,7 @@ export default function TokenPreSalePage() {
   ]);
 
   // Calculate token amount based on ETH or USDC input
+  // This useEffect relies on MIN_PURCHASE_USD and TOKEN_PRICE_USD being loaded
   useEffect(() => {
     if (TOKEN_PRICE_USD === null || MIN_PURCHASE_USD === null) return; // Wait for contract data to load
 
@@ -337,7 +256,6 @@ export default function TokenPreSalePage() {
     }
   }, [ethAmount, usdcAmount, ethUsdPrice, TOKEN_PRICE_USD, MIN_PURCHASE_USD]); // Added dependencies
 
-  // Handlers for input changes, ensuring only one input is active at a time
   const handleEthAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -354,7 +272,6 @@ export default function TokenPreSalePage() {
     }
   };
 
-  // Handler for buying with ETH
   const handleBuyWithEth = async () => {
     if (!address) {
       openConnectModal();
@@ -373,10 +290,10 @@ export default function TokenPreSalePage() {
       return;
     }
 
-    // Enforce a minimum purchase
+    // Optional: enforce a minimum purchase
     if (usdValue < MIN_PURCHASE_USD) {
       toast({
-        title: "Minimum Purchase Amount",
+        title: "Minimum purchase Amount",
         description: `Minimum purchase is $${MIN_PURCHASE_USD} USD`,
         variant: "destructive",
       });
@@ -391,19 +308,16 @@ export default function TokenPreSalePage() {
         value: parseEther(ethAmount), // Use parseEther for ETH conversion to wei
       });
 
-      setEthAmount(""); // Clear input after transaction is sent
+      setEthAmount("");
+      // Toast messages are now handled by useEffect hook
     } catch (error) {
       console.error("ETH transaction failed:", error);
-      toast({
-        title: "ETH Purchase Failed",
-        description: `Error: ${(error as Error).message}`,
-        variant: "destructive",
-      });
+      // Toast messages are now handled by useEffect hook
     }
   };
 
-  // Function to trigger USDC approval
-  const handleApproveUsdc = async () => {
+  // NEW: handleApproveUsdc function
+  const handleApproveAndBuyWithUsdc = async () => {
     if (!address) {
       openConnectModal();
       return;
@@ -413,31 +327,55 @@ export default function TokenPreSalePage() {
     if (isNaN(usdcValue) || usdcValue <= 0) {
       toast({
         title: "Invalid Amount",
-        description: "Please enter a valid USDC amount to approve.",
+        description: "Please enter a valid USDC amount.",
         variant: "destructive",
       });
       return;
     }
 
-    // Approve the exact amount the user wants to spend
-    // For production, you might approve a larger, reasonable amount to reduce repeated approvals
-    const amountToApprove = parseUnits(usdcValue.toFixed(6), 6); // USDC has 6 decimals
+    const currentAllowance = usdcAllowance
+      ? parseFloat(formatUnits(usdcAllowance, 6))
+      : 0;
 
-    try {
-      await writeApproveContract({
-        address: USDC_CONTRACT_ADDRESS, // Use USDC contract address
-        abi: erc20Abi, // Use ERC-20 ABI for approve function
-        functionName: "approve",
-        args: [TOKEN_SHOP_CONTRACT_ADDRESS, amountToApprove], // Approve the TokenShop contract
-      });
-    } catch (error) {
-      console.error("USDC approval failed:", error);
-      toast({
-        title: "USDC Approval Failed",
-        description: `Error: ${(error as Error).message}`,
-        variant: "destructive",
-      });
+    const needsApproval = currentAllowance < usdcValue;
+    const amountInUnits = parseUnits(usdcValue.toFixed(6), 6);
+
+    if (needsApproval) {
+      try {
+        const approvalAmount = amountInUnits;
+        await writeApproveContract({
+          address: USDC_CONTRACT_ADDRESS,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [TOKEN_SHOP_CONTRACT_ADDRESS, approvalAmount],
+        });
+      } catch (error) {
+        console.error("Approval failed:", error);
+        return;
+      }
     }
+
+    const checkAllowanceInterval = setInterval(async () => {
+      const refetched = await refetchUsdcAllowance();
+      const newAllowance = refetched.data
+        ? parseFloat(formatUnits(refetched.data, 6))
+        : 0;
+
+      if (newAllowance >= usdcValue) {
+        clearInterval(checkAllowanceInterval);
+        try {
+          await writeShopContract({
+            address: TOKEN_SHOP_CONTRACT_ADDRESS,
+            abi: wagmiContractConfig.abi,
+            functionName: "buyWithUSDC",
+            args: [amountInUnits],
+          });
+          setUsdcAmount("");
+        } catch (error) {
+          console.error("Purchase failed:", error);
+        }
+      }
+    }, 3000);
   };
 
   return (
@@ -610,20 +548,19 @@ export default function TokenPreSalePage() {
                   ethAmount={ethAmount}
                   usdcAmount={usdcAmount}
                   tokenAmount={tokenAmount}
-                  isPendingEth={isShopTxPending} // Pass the correct pending state for the shop contract
+                  isPendingEth={isShopTxPending}
                   minPurchaseUsd={MIN_PURCHASE_USD ?? 0} // Ensure a default value for null
                   isConnected={isConnected}
-                  isConfirmingBuyEth={isConfirmingShopTx} // Pass the correct confirming state for the shop contract
-                  isConfirmedBuyEth={isConfirmedShopTx} // Pass the correct confirmed state for the shop contract
+                  isConfirmingBuyEth={isConfirmingShopTx}
+                  isConfirmedBuyEth={isConfirmedShopTx}
                   onEthAmountChange={handleEthAmountChange}
                   onUsdcAmountChange={handleUsdcAmountChange}
                   onBuyWithEth={handleBuyWithEth}
-                  onBuyWithUsdc={handleBuyWithUsdc}
+                  onBuyWithUsdc={handleApproveAndBuyWithUsdc}
                   // --- NEW PROPS FOR USDC APPROVAL ---
                   usdcAllowance={usdcAllowance}
                   isApprovePending={isApprovePending}
                   isConfirmingApprove={isConfirmingApprove}
-                  onApproveUsdc={handleApproveUsdc}
                 />
 
                 <div className="mt-6 pt-4 border-t border-gray-800">
