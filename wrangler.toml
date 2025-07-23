@@ -1,7 +1,11 @@
   main = ".open-next/worker.js"
-  name = "waga-protocol-for"
-  compatibility_date = "2025-03-25"
+  name = "waga-protocol-test"
+  compatibility_date = "2025-06-04"
   compatibility_flags = ["nodejs_compat"]
   [assets]
   directory = ".open-next/assets"
   binding = "ASSETS"
+
+  routes = [
+    { pattern = "protocol.wagatoken.io", custom_domain = true }
+  ]
