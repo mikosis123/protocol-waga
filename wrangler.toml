@@ -5,7 +5,3 @@
   [assets]
   directory = ".open-next/assets"
   binding = "ASSETS"
-
-  routes = [
-    { pattern = "protocol.wagatoken.io", custom_domain = true }
-  ]
