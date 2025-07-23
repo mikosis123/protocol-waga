@@ -1,0 +1,160 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "dynamicRoutes": [
+    {
+      "page": "/community/forums/[id]",
+      "regex": "^/community/forums/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/community/forums/(?<nxtPid>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/admin/content",
+      "regex": "^/admin/content(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/content(?:/)?$"
+    },
+    {
+      "page": "/admin/dashboard",
+      "regex": "^/admin/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/dashboard(?:/)?$"
+    },
+    {
+      "page": "/admin/reports",
+      "regex": "^/admin/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports(?:/)?$"
+    },
+    {
+      "page": "/admin/settings",
+      "regex": "^/admin/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/settings(?:/)?$"
+    },
+    {
+      "page": "/admin/users",
+      "regex": "^/admin/users(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/users(?:/)?$"
+    },
+    {
+      "page": "/community/dashboard",
+      "regex": "^/community/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/dashboard(?:/)?$"
+    },
+    {
+      "page": "/community/events",
+      "regex": "^/community/events(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/events(?:/)?$"
+    },
+    {
+      "page": "/community/events/create",
+      "regex": "^/community/events/create(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/events/create(?:/)?$"
+    },
+    {
+      "page": "/community/forums",
+      "regex": "^/community/forums(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/forums(?:/)?$"
+    },
+    {
+      "page": "/community/forums/new",
+      "regex": "^/community/forums/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/forums/new(?:/)?$"
+    },
+    {
+      "page": "/community/founding-member",
+      "regex": "^/community/founding\\-member(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/founding\\-member(?:/)?$"
+    },
+    {
+      "page": "/community/members",
+      "regex": "^/community/members(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/members(?:/)?$"
+    },
+    {
+      "page": "/community/register",
+      "regex": "^/community/register(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/register(?:/)?$"
+    },
+    {
+      "page": "/community/resources",
+      "regex": "^/community/resources(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/resources(?:/)?$"
+    },
+    {
+      "page": "/community/resources/upload",
+      "regex": "^/community/resources/upload(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/community/resources/upload(?:/)?$"
+    },
+    {
+      "page": "/explore",
+      "regex": "^/explore(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/explore(?:/)?$"
+    },
+    {
+      "page": "/token-pre-sale",
+      "regex": "^/token\\-pre\\-sale(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/token\\-pre\\-sale(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "RSC",
+    "varyHeader": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch",
+    "prefetchHeader": "Next-Router-Prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "Next-Router-Segment-Prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  },
+  "rewrites": []
+}
