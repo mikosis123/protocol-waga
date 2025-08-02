@@ -31,7 +31,7 @@ import {
 } from "wagmi";
 import { wagmiContractConfig } from "@/components/contract-data/wagmiContractConfig";
 import { useToast } from "@/hooks/use-toast";
-
+import { usePublicClient } from "wagmi";
 // --- START OF MODIFICATIONS ---
 // Correct import for erc20Abi from the new file
 import { erc20Abi } from "@/components/contract-data/wagmiContractConfig"; // Corrected import path
@@ -84,11 +84,33 @@ export default function TokenPreSalePage() {
   const [lastTransactionTokenAmount, setLastTransactionTokenAmount] =
     useState("0");
   const [ethUsdPrice, setEthUsdPrice] = useState(MOCK_ETH_USD_PRICE);
+  const publicClient = usePublicClient();
+  const [block, setBlock] = useState(null);
 
   const { address, isConnected } = useAccount();
   const { openConnectModal } = useWallet();
   const { toast } = useToast();
+  const client = usePublicClient();
 
+  useEffect(() => {
+    async function fetchBlock() {
+      if (!publicClient) {
+        console.error("Wagmi public client is not available.");
+        return;
+      }
+
+      try {
+        const blockData = await publicClient.getBlock({
+          blockNumber: BigInt(123456),
+        });
+        setBlock(blockData);
+      } catch (err) {
+        console.error("Failed to fetch block:");
+      }
+    }
+
+    fetchBlock();
+  }, [publicClient]);
   // --- START OF MODIFICATIONS ---
   // Wagmi Hooks for TokenShop transactions
   const {
