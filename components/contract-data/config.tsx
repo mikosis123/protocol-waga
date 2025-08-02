@@ -8,7 +8,7 @@ export const config = createConfig({
     // [mainnet.id]: http(),
     // [base.id]: http(),
     [baseSepolia.id]: http(
-      "https://base-sepolia.g.alchemy.com/v2/_F1cwvEd3qO1dogdpKRhYZzsnB55S0uy"
+      process.env.NEXT_PUBLIC_ALCHEMY_BASE_SEPOLIA_RPC_URL
     ),
   },
 });
