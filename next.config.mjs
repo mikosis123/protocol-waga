@@ -9,6 +9,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+  env: {
+    NEXT_PUBLIC_ALCHEMY_BASE_SEPOLIA_RPC_URL:
+      process.env.NEXT_PUBLIC_ALCHEMY_BASE_SEPOLIA_RPC_URL,
+  },
+};
 
-export default nextConfig
+export default nextConfig;
