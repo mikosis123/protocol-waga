@@ -85,32 +85,9 @@ export default function TokenPreSalePage() {
     useState("0");
   const [ethUsdPrice, setEthUsdPrice] = useState(MOCK_ETH_USD_PRICE);
   const publicClient = usePublicClient();
-  const [block, setBlock] = useState(null);
-
   const { address, isConnected } = useAccount();
   const { openConnectModal } = useWallet();
   const { toast } = useToast();
-  const client = usePublicClient();
-
-  useEffect(() => {
-    async function fetchBlock() {
-      if (!publicClient) {
-        console.error("Wagmi public client is not available.");
-        return;
-      }
-
-      try {
-        const blockData = await publicClient.getBlock({
-          blockNumber: BigInt(123456),
-        });
-        setBlock(blockData);
-      } catch (err) {
-        console.error("Failed to fetch block:");
-      }
-    }
-
-    fetchBlock();
-  }, [publicClient]);
   // --- START OF MODIFICATIONS ---
   // Wagmi Hooks for TokenShop transactions
   const {
@@ -209,23 +186,65 @@ export default function TokenPreSalePage() {
   // Handle toast notifications for USDC approval transaction
   useEffect(() => {
     if (isApproved && approveTxHash) {
+      const txLink = `https://sepolia.basescan.org/tx/${approveTxHash}`;
       toast({
-        title: "USDC Approved!",
-        description: `Transaction ${approveTxHash.slice(
-          0,
-          6
-        )}...${approveTxHash.slice(
-          -4
-        )} confirmed. You can now buy WAGA Tokens with USDC.`,
+        title: "🎉 USDC Approval Successful!",
+        description: (
+          <div className="space-y-1">
+            <p>Your USDC has been approved for WAGA Token purchases.</p>
+            <p className="text-xs opacity-80">
+              Transaction: {approveTxHash.slice(0, 6)}...
+              {approveTxHash.slice(-4)}
+            </p>
+            <a
+              href={txLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 text-xs underline"
+            >
+              View on BaseScan →
+            </a>
+          </div>
+        ),
         variant: "default",
+        duration: 8000,
       });
       refetchUsdcAllowance(); // Refetch allowance after successful approval
     }
     if (approveError) {
+      let errorTitle = "❌ USDC Approval Failed";
+      let errorDescription = approveError.message;
+      let actionGuidance = "";
+
+      // Categorize common errors and provide guidance
+      if (approveError.message?.includes("insufficient funds")) {
+        errorTitle = "💰 Insufficient Funds";
+        errorDescription =
+          "You don't have enough ETH to pay for the transaction fee.";
+        actionGuidance = "Please add ETH to your wallet and try again.";
+      } else if (approveError.message?.includes("user rejected")) {
+        errorTitle = "🚫 Transaction Cancelled";
+        errorDescription = "You cancelled the USDC approval transaction.";
+        actionGuidance =
+          "You'll need to approve USDC spending to purchase tokens.";
+      } else if (approveError.message?.includes("gas")) {
+        errorTitle = "⛽ Gas Error";
+        errorDescription = "There was an issue with the transaction gas.";
+        actionGuidance = "Try increasing the gas limit or try again later.";
+      }
+
       toast({
-        title: "Approval Failed",
-        description: `USDC approval transaction failed: ${approveError.message}`,
+        title: errorTitle,
+        description: (
+          <div className="space-y-1">
+            <p>{errorDescription}</p>
+            {actionGuidance && (
+              <p className="text-xs opacity-80">{actionGuidance}</p>
+            )}
+          </div>
+        ),
         variant: "destructive",
+        duration: 10000,
       });
     }
   }, [isApproved, approveTxHash, approveError, toast, refetchUsdcAllowance]);
@@ -233,20 +252,92 @@ export default function TokenPreSalePage() {
   // Handle toast notifications for token purchase transaction
   useEffect(() => {
     if (isConfirmedShopTx && shopTxHash) {
+      const txLink = `https://sepolia.basescan.org/tx/${shopTxHash}`;
+      const usdValue = ethAmount
+        ? (parseFloat(ethAmount) * ethUsdPrice).toFixed(2)
+        : usdcAmount
+        ? parseFloat(usdcAmount).toFixed(2)
+        : "0";
+
       toast({
-        title: "Purchase Confirmed!",
-        description: `Your purchase of ${lastTransactionTokenAmount} WAGA tokens is complete. Transaction: ${shopTxHash.slice(
-          0,
-          6
-        )}...${shopTxHash.slice(-4)}.`,
+        title: "🚀 WAGA Tokens Purchased Successfully!",
+        description: (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-emerald-400">
+                {lastTransactionTokenAmount} WAGA Tokens
+              </span>
+              <span className="text-sm text-gray-400">${usdValue} USD</span>
+            </div>
+            <p className="text-xs opacity-80">
+              Transaction: {shopTxHash.slice(0, 6)}...{shopTxHash.slice(-4)}
+            </p>
+            <div className="flex items-center justify-between">
+              <a
+                href={txLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 text-xs underline"
+              >
+                View on BaseScan →
+              </a>
+              <span className="text-xs text-emerald-400">
+                Welcome to the WAGA Community! 🎉
+              </span>
+            </div>
+          </div>
+        ),
         variant: "default",
+        duration: 10000,
       });
     }
     if (shopError) {
+      let errorTitle = "❌ Token Purchase Failed";
+      let errorDescription = shopError.message;
+      let actionGuidance = "";
+
+      // Categorize common errors and provide guidance
+      if (shopError.message?.includes("insufficient funds")) {
+        errorTitle = "💰 Insufficient Funds";
+        errorDescription =
+          "You don't have enough funds to complete this purchase.";
+        actionGuidance = "Please check your wallet balance and try again.";
+      } else if (shopError.message?.includes("user rejected")) {
+        errorTitle = "🚫 Transaction Cancelled";
+        errorDescription = "You cancelled the token purchase transaction.";
+        actionGuidance = "You can try again when you're ready to purchase.";
+      } else if (shopError.message?.includes("allowance")) {
+        errorTitle = "🔐 Insufficient Allowance";
+        errorDescription = "Your USDC allowance is too low for this purchase.";
+        actionGuidance = "Please approve more USDC spending and try again.";
+      } else if (shopError.message?.includes("minimum")) {
+        errorTitle = "📊 Below Minimum Purchase";
+        errorDescription =
+          "Your purchase amount is below the minimum required.";
+        actionGuidance = `Minimum purchase is $${MIN_PURCHASE_USD} USD.`;
+      } else if (shopError.message?.includes("gas")) {
+        errorTitle = "⛽ Gas Error";
+        errorDescription = "There was an issue with the transaction gas.";
+        actionGuidance = "Try increasing the gas limit or try again later.";
+      } else if (shopError.message?.includes("slippage")) {
+        errorTitle = "📈 Price Slippage";
+        errorDescription = "The token price changed during your transaction.";
+        actionGuidance =
+          "Try again with a slightly higher amount to account for price changes.";
+      }
+
       toast({
-        title: "Purchase Failed",
-        description: `Your token purchase failed: ${shopError.message}`,
+        title: errorTitle,
+        description: (
+          <div className="space-y-1">
+            <p>{errorDescription}</p>
+            {actionGuidance && (
+              <p className="text-xs opacity-80">{actionGuidance}</p>
+            )}
+          </div>
+        ),
         variant: "destructive",
+        duration: 12000,
       });
     }
   }, [
@@ -255,6 +346,10 @@ export default function TokenPreSalePage() {
     shopError,
     toast,
     lastTransactionTokenAmount,
+    ethAmount,
+    usdcAmount,
+    ethUsdPrice,
+    MIN_PURCHASE_USD,
   ]);
 
   // Calculate token amount based on ETH or USDC input
